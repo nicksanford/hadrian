@@ -69,18 +69,7 @@ config :realtime,
   db_ip_version: db_ip_version,
   publications: publications,
   slot_name: slot_name,
-  configuration_file: configuration_file,
-  secure_channels: secure_channels,
-  jwt_secret: jwt_secret,
-  jwt_claim_validators: jwt_claim_validators,
   max_replication_lag_in_mb: max_replication_lag_in_mb
-
-# Configures the endpoint
-config :realtime, RealtimeWeb.Endpoint,
-  url: [host: "localhost"],
-  render_errors: [view: RealtimeWeb.ErrorView, accepts: ~w(html json)],
-  pubsub_server: Realtime.PubSub,
-  secret_key_base: session_secret_key_base
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -88,7 +77,6 @@ config :logger, :console,
   metadata: [:request_id]
 
 # Use Jason for JSON parsing in Phoenix
-config :phoenix, :json_library, Jason
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

@@ -148,6 +148,7 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
           epgsql_select_pid: epgsql_select_pid
         } = state
       ) do
+    Logger.debug("starting replication")
     case start_replication(state) do
       {:ok, updated_state} ->
         {:noreply, updated_state}
@@ -335,6 +336,7 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
         end
 
       false ->
+        Logger.debug("publication #{publication_name} does not exist")
         maybe_drop_replication_slot(state)
         {delay, updated_state} = get_delay(state)
         Process.send_after(__MODULE__, :start_replication, delay)

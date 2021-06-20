@@ -10,7 +10,7 @@ defmodule Realtime.MixProject do
       version: @version,
       elixir: @elixir,
       elixirc_paths: elixirc_paths(Mix.env()),
-      compilers: [:phoenix, :gettext] ++ Mix.compilers(),
+      compilers: [:gettext] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -22,7 +22,7 @@ defmodule Realtime.MixProject do
   def application do
     [
       mod: {Realtime.Application, []},
-      extra_applications: [:logger, :runtime_tools, :httpoison]
+      extra_applications: [:logger, :runtime_tools, :hackney]
     ]
   end
 
@@ -35,15 +35,7 @@ defmodule Realtime.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.5"},
-      {:phoenix_pubsub, "~> 2.0"},
-      {:phoenix_html, "~> 2.14"},
-      {:phoenix_live_reload, "~> 1.3", only: :dev},
-      {:gettext, "~> 0.18"},
-      {:httpoison, "~> 1.8"},
       {:jason, "~> 1.2.2"},
-      {:joken, "~> 2.3.0"},
-      {:plug_cowboy, "~> 2.4"},
       {:epgsql, "~> 4.5"},
       {:timex, "~> 3.0"},
       {:retry, "~> 0.14.1"},

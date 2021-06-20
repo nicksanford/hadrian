@@ -9,17 +9,7 @@ use Mix.Config
 
 # Channels are not secured by default in development and
 # are secured by default in production.
-secure_channels = System.get_env("SECURE_CHANNELS", "false") == "true"
 
-config :realtime,
-  secure_channels: secure_channels
-
-config :realtime, RealtimeWeb.Endpoint,
-  http: [port: 4000],
-  debug_errors: true,
-  code_reloader: true,
-  check_origin: false,
-  watchers: []
 
 # ## SSL Support
 #
@@ -46,22 +36,11 @@ config :realtime, RealtimeWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :realtime, RealtimeWeb.Endpoint,
-  live_reload: [
-    patterns: [
-      ~r"priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
-      ~r"priv/gettext/.*(po)$",
-      ~r"lib/realtime_web/{live,views}/.*(ex)$",
-      ~r"lib/realtime_web/templates/.*(eex)$"
-    ]
-  ]
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
-config :phoenix, :stacktrace_depth, 20
 
 # Initialize plugs at runtime for faster development compilation
-config :phoenix, :plug_init_mode, :runtime

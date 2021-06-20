@@ -12,7 +12,6 @@ db_password = System.get_env("DB_PASSWORD", "postgres")
 db_ssl = System.get_env("DB_SSL", "true") === "true"
 publications = System.get_env("PUBLICATIONS", "[\"supabase_realtime\"]")
 slot_name = System.get_env("SLOT_NAME") || :temporary
-configuration_file = System.get_env("CONFIGURATION_FILE")
 
 # If the replication lag exceeds the set MAX_REPLICATION_LAG_MB (make sure the value is a positive integer in megabytes) value
 # then replication slot named SLOT_NAME (e.g. "realtime") will be dropped and Realtime will
@@ -21,11 +20,9 @@ max_replication_lag_in_mb = String.to_integer(System.get_env("MAX_REPLICATION_LA
 
 # Channels are not secured by default in development and
 # are secured by default in production.
-secure_channels = System.get_env("SECURE_CHANNELS", "true") != "false"
 
 # Supports HS algorithm octet keys
 # e.g. "95x0oR8jq9unl9pOIx"
-jwt_secret = System.get_env("JWT_SECRET", "")
 
 # Every JWT's claims will be compared (equality checks) to the expected
 # claims set in the JSON object.
@@ -33,14 +30,8 @@ jwt_secret = System.get_env("JWT_SECRET", "")
 # Set JWT_CLAIM_VALIDATORS="{'iss': 'Issuer', 'nbf': 1610078130}"
 # Then JWT's "iss" value must equal "Issuer" and "nbf" value
 # must equal 1610078130.
-jwt_claim_validators = System.get_env("JWT_CLAIM_VALIDATORS", "{}")
 
 # The secret key base to built the cookie signing/encryption key.
-session_secret_key_base =
-  System.get_env(
-    "SESSION_SECRET_KEY_BASE",
-    "Kyvjr42ZvLcY6yzZ7vmRUniE7Bta9tpknEAvpxtaYOa/marmeI1jsqxhIKeu6V51"
-  )
 
 # Connect to database via specified IP version. Options are either "IPv4" or "IPv6".
 # If IP version is not specified and database host is:
@@ -62,13 +53,9 @@ config :realtime,
   db_ip_version: db_ip_version,
   publications: publications,
   slot_name: slot_name,
-  configuration_file: configuration_file,
-  secure_channels: secure_channels,
-  jwt_secret: jwt_secret,
-  jwt_claim_validators: jwt_claim_validators,
   max_replication_lag_in_mb: max_replication_lag_in_mb
 
-config :realtime, RealtimeWeb.Endpoint,
-  http: [:inet6, port: app_port],
-  pubsub_server: Realtime.PubSub,
-  secret_key_base: session_secret_key_base
+config :logger,
+  level: :debug,
+  handle_sasl_reports: true,
+  handle_otp_reports: true
