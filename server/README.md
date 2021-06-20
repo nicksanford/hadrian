@@ -1,5 +1,10 @@
 # Realtime Server Instructions
 
+Nick's edit
+```
+MIX_ENV=prod mix release --overwrite && SLOT_NAME=realtime_replication_slot DB_USER=postgres DB_HOST=localhost DB_PASSWORD=postgres DB_NAME=hestia_dev DB_PORT=5432 _build/prod/rel/realtime/bin/realtime start_iex
+```
+
 ## Run locally via mix
 
 ```sh
