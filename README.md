@@ -5,8 +5,8 @@ The following are requirements for your database:
 
 1. It must be Postgres 10+ as it uses logical replication
 2. Set up your DB for replication
-  1. It must have the wal_level set to logical. You can check this by running SHOW wal_level;. To set the wal_level, you can call `ALTER SYSTEM SET wal_level = logical`; Be sure to reboot your postgres server after doing so.
-  2. You must set max_replication_slots to at least 1: `ALTER SYSTEM SET max_replication_slots = 10`;
+    1. It must have the wal_level set to logical. You can check this by running SHOW wal_level;. To set the wal_level, you can call `ALTER SYSTEM SET wal_level = logical`; Be sure to reboot your postgres server after doing so.
+    2. You must set max_replication_slots to at least 1: `ALTER SYSTEM SET max_replication_slots = 10`;
 3. Create a PUBLICATION for this server to listen to: `CREATE PUBLICATION supabase_realtime FOR ALL TABLES`;
 4. [OPTIONAL] If you want to receive the old record (previous values) on UPDATE and DELETE, you can set the REPLICA IDENTITY to FULL like this: ALTER TABLE your_table REPLICA IDENTITY FULL;. This has to be set for each table unfortunately.
 
