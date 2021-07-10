@@ -10,6 +10,9 @@ The following are requirements for your database:
 3. Create a PUBLICATION for this server to listen to: `CREATE PUBLICATION supabase_realtime FOR ALL TABLES`;
 4. [OPTIONAL] If you want to receive the old record (previous values) on UPDATE and DELETE, you can set the REPLICA IDENTITY to FULL like this: ALTER TABLE your_table REPLICA IDENTITY FULL;. This has to be set for each table unfortunately.
 
+
+Executing `pqsl -f ./sql/00-init.sql` against your postgres db will perform 2.1, 2.2 and 3 for you. Restart your db after doing so.
+
 ## Run with docker:
 ```sh
 docker run                                   \
