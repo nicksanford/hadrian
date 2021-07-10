@@ -149,6 +149,7 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
         } = state
       ) do
     Logger.debug("starting replication")
+
     case start_replication(state) do
       {:ok, updated_state} ->
         {:noreply, updated_state}
@@ -321,8 +322,8 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
         with :ok <- maybe_create_replication_slot(state),
              replication_server_pid when is_pid(replication_server_pid) <-
                Process.whereis(Replication),
+             # TODO: What happens if replication_server_pid dies?
              :ok <-
-               # TODO: What happens if replication_server_pid dies?
                :epgsql.start_replication(
                  epgsql_replication_pid,
                  slot_name,

@@ -11,6 +11,7 @@ defmodule Realtime.DatabaseReplicationSupervisor do
   @impl true
   def init(config) do
     {replication_config, config} = config |> Keyword.pop!(:replication_config)
+
     children = [
       {Replication, replication_config},
       {EpgsqlServer, config}

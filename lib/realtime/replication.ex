@@ -43,12 +43,13 @@ defmodule Realtime.Replication do
 
   @impl true
   def init(config) do
-    {:ok, %State{
-      notify_func: Keyword.fetch!(config, :notify_func),
-      relations: %{},
-      transaction: nil,
-      types: %{}
-    }}
+    {:ok,
+     %State{
+       notify_func: Keyword.fetch!(config, :notify_func),
+       relations: %{},
+       transaction: nil,
+       types: %{}
+     }}
   end
 
   @impl true
@@ -89,20 +90,20 @@ defmodule Realtime.Replication do
     Logger.debug("Final Update of Columns " <> inspect(relations, limit: :infinity))
 
     complete_transaction = %{txn | changes: Enum.reverse(changes)}
-         # Note currently this assumes that the nofification function
-         # always succeeds i.e. returns `:ok`.
-         #
-         # Once nofication succeeds, the transaction is acked allowing
-         # it to be removed from the WAL.
-         #
-         # If it returns anything other than `:ok` the replication genserver
-         # dies & the transaction is not acked. This means that transaction
-         # will be replayed when the next replication genserver boots.
-         #
-         # If this happens 3 times in 5 min the entire app crashes.
-         #
-         # If running in docker the container could then be rebooted by the
-         # container scheduler.
+    # Note currently this assumes that the nofification function
+    # always succeeds i.e. returns `:ok`.
+    #
+    # Once nofication succeeds, the transaction is acked allowing
+    # it to be removed from the WAL.
+    #
+    # If it returns anything other than `:ok` the replication genserver
+    # dies & the transaction is not acked. This means that transaction
+    # will be replayed when the next replication genserver boots.
+    #
+    # If this happens 3 times in 5 min the entire app crashes.
+    #
+    # If running in docker the container could then be rebooted by the
+    # container scheduler.
     :ok = notify_func.(complete_transaction)
     :ok = EpgsqlServer.acknowledge_lsn(end_lsn)
 

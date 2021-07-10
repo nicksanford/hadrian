@@ -21,15 +21,17 @@ config :realtime,
   db_ssl: System.get_env("DB_SSL", "true") == "true",
   db_ip_version: db_ip_version,
   publications: System.get_env("PUBLICATIONS", "[\"supabase_realtime\"]"),
-# If a slot name is not specified then 
+  # If a slot name is not specified then 
   slot_name: System.get_env("SLOT_NAME") || :temporary,
-# If the replication lag exceeds the set MAX_REPLICATION_LAG_MB (make sure the value is a positive integer in megabytes) value
-# then replication slot named SLOT_NAME (e.g. "realtime") will be dropped and Realtime will
-# restart with a new slot.
+  # If the replication lag exceeds the set MAX_REPLICATION_LAG_MB (make sure the value is a positive integer in megabytes) value
+  # then replication slot named SLOT_NAME (e.g. "realtime") will be dropped and Realtime will
+  # restart with a new slot.
   max_replication_lag_in_mb: String.to_integer(System.get_env("MAX_REPLICATION_LAG_MB", "0"))
 
 config :logger,
   truncate: :infinity,
-  level: :info#,
-  # handle_sasl_reports: true,
-  # handle_otp_reports: true
+  # ,
+  level: :info
+
+# handle_sasl_reports: true,
+# handle_otp_reports: true

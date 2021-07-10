@@ -10,7 +10,6 @@ use Mix.Config
 # Channels are not secured by default in development and
 # are secured by default in production.
 
-
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed
