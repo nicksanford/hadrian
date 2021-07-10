@@ -41,3 +41,6 @@ deps/
 server/_build
 server/deps
 .DS_Store
+*.swp
+*.swo
+*.swn

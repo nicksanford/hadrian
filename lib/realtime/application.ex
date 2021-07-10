@@ -7,10 +7,6 @@ defmodule Realtime.Application do
   require Logger, warn: false
 
   def start(_type, _args) do
-    # Hostname must be a char list for some reason
-    # Use this var to convert to sigil at connection
-    host = Application.fetch_env!(:realtime, :db_host)
-
     # Use a named replication slot if you want realtime to pickup from where
     # it left after a restart because of, for example, a crash.
     # This will always be converted to lower-case.
@@ -20,16 +16,22 @@ defmodule Realtime.Application do
 
     max_replication_lag_in_mb = Application.fetch_env!(:realtime, :max_replication_lag_in_mb)
 
-    publications = Application.get_env(:realtime, :publications) |> Jason.decode!()
+    publications = Application.fetch_env!(:realtime, :publications) |> Jason.decode!()
 
     epgsql_params = %{
-      host: ~c(#{host}),
+      host: ~c(#{Application.fetch_env!(:realtime, :db_host)}),
       username: Application.fetch_env!(:realtime, :db_user),
       database: Application.fetch_env!(:realtime, :db_name),
-      # password: Application.fetch_env!(:realtime, :db_password),
       port: Application.fetch_env!(:realtime, :db_port),
       ssl: Application.fetch_env!(:realtime, :db_ssl)
     }
+
+    # epgsql_params = with password when is_binary(password) <- Application.get_env(:realtime, :db_password) do
+    #   %{epgsql_params | password: password}
+    # else
+    #   _ ->
+    #     epgsql_params
+    # end
 
     epgsql_params =
       with {:ok, ip_version} <- Application.fetch_env!(:realtime, :db_ip_version),
@@ -43,7 +45,6 @@ defmodule Realtime.Application do
 
     # List all child processes to be supervised
     children = [
-      # Start the endpoint when the application starts
       {
         Realtime.DatabaseReplicationSupervisor,
         # You can provide a different WAL position if desired, or default to
@@ -56,8 +57,6 @@ defmodule Realtime.Application do
       }
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one]
     Supervisor.start_link(children, opts)
   end

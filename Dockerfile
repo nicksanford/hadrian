@@ -1,5 +1,5 @@
 # ---- Build Stage ----
-FROM elixir:1.9.4 AS app_builder
+FROM elixir:1.12.2 AS app_builder
 
 # Set environment variables for building the application
 ENV MIX_ENV=prod \
@@ -29,7 +29,6 @@ WORKDIR /app
 # Copy over all the necessary application files and directories
 COPY ./server/config ./config
 COPY ./server/lib ./lib
-COPY ./server/priv ./priv
 COPY ./server/mix.exs .
 COPY ./server/mix.lock .
 
