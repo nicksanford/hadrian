@@ -4,6 +4,8 @@ defmodule Realtime.SubscribersNotification do
   alias Realtime.Adapters.Changes.Transaction
 
   def notify(%Transaction{changes: changes}) when is_list(changes) do
-    Logger.info(inspect(changes))
+    changes
+    |> Jason.encode!(pretty: true)
+    |> then(fn json -> Logger.info(json <> "\nlength: #{length(changes)}") end)
   end
 end

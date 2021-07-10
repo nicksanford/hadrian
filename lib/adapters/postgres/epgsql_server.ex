@@ -322,6 +322,7 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
              replication_server_pid when is_pid(replication_server_pid) <-
                Process.whereis(Replication),
              :ok <-
+               # TODO: What happens if replication_server_pid dies?
                :epgsql.start_replication(
                  epgsql_replication_pid,
                  slot_name,

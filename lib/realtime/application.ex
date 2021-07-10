@@ -49,6 +49,7 @@ defmodule Realtime.Application do
         Realtime.DatabaseReplicationSupervisor,
         # You can provide a different WAL position if desired, or default to
         # allowing Postgres to send you what it thinks you need
+        replication_config: [notify_func: &Realtime.SubscribersNotification.notify/1],
         epgsql_params: epgsql_params,
         publications: publications,
         slot_name: slot_name,

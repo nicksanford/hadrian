@@ -2,14 +2,15 @@
 # License: https://github.com/cainophile/cainophile/blob/master/LICENSE
 
 defmodule Realtime.Replication do
-  defmodule(State,
-    do:
-      defstruct(
-        relations: %{},
-        transaction: nil,
-        types: %{}
-      )
-  )
+  defmodule State do
+    @enforce_keys [
+      :notify_func,
+      :relations,
+      :transaction,
+      :types
+    ]
+    defstruct @enforce_keys
+  end
 
   use GenServer
 
@@ -35,15 +36,19 @@ defmodule Realtime.Replication do
   }
 
   alias Realtime.Adapters.Postgres.EpgsqlServer
-  alias Realtime.SubscribersNotification
 
   def start_link(config) do
     GenServer.start_link(__MODULE__, config, name: __MODULE__)
   end
 
   @impl true
-  def init(_) do
-    {:ok, %State{}}
+  def init(config) do
+    {:ok, %State{
+      notify_func: Keyword.fetch!(config, :notify_func),
+      relations: %{},
+      transaction: nil,
+      types: %{}
+    }}
   end
 
   @impl true
@@ -73,6 +78,7 @@ defmodule Realtime.Replication do
   defp process_message(
          %Commit{lsn: commit_lsn, end_lsn: end_lsn},
          %State{
+           notify_func: notify_func,
            transaction: {current_txn_lsn, %Transaction{changes: changes} = txn},
            relations: relations
          } = state
@@ -82,8 +88,22 @@ defmodule Realtime.Replication do
     # Feel free to delete after testing
     Logger.debug("Final Update of Columns " <> inspect(relations, limit: :infinity))
 
-    :ok = %{txn | changes: Enum.reverse(changes)} |> SubscribersNotification.notify()
-
+    complete_transaction = %{txn | changes: Enum.reverse(changes)}
+         # Note currently this assumes that the nofification function
+         # always succeeds i.e. returns `:ok`.
+         #
+         # Once nofication succeeds, the transaction is acked allowing
+         # it to be removed from the WAL.
+         #
+         # If it returns anything other than `:ok` the replication genserver
+         # dies & the transaction is not acked. This means that transaction
+         # will be replayed when the next replication genserver boots.
+         #
+         # If this happens 3 times in 5 min the entire app crashes.
+         #
+         # If running in docker the container could then be rebooted by the
+         # container scheduler.
+    :ok = notify_func.(complete_transaction)
     :ok = EpgsqlServer.acknowledge_lsn(end_lsn)
 
     %{state | transaction: nil}

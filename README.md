@@ -16,7 +16,7 @@ Executing `pqsl -f ./sql/00-init.sql` against your postgres db will perform 2.1,
 ## Run with docker:
 ```sh
 docker run                                   \
-   -e DB_HOST='docker.for.mac.host.internal' \
+   -e DB_HOST='localhost'                    \
    -e DB_NAME='postgres'                     \
    -e DB_USER='postgres'                     \
    -e DB_PASSWORD='postgres'                 \
