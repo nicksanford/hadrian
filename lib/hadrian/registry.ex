@@ -67,7 +67,9 @@ defmodule Hadrian.Registry do
   @spec via(Hadrian.name(), role(), value()) :: {:via, Registry, {__MODULE__, key()}}
   def via(hadrian_name, role \\ nil, value \\ nil)
   def via(hadrian_name, role, nil), do: {:via, Registry, {__MODULE__, key(hadrian_name, role)}}
-  def via(hadrian_name, role, value), do: {:via, Registry, {__MODULE__, key(hadrian_name, role), value}}
+
+  def via(hadrian_name, role, value),
+    do: {:via, Registry, {__MODULE__, key(hadrian_name, role), value}}
 
   defp key(hadrian_name, nil), do: hadrian_name
   defp key(hadrian_name, role), do: {hadrian_name, role}
