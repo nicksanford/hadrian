@@ -1,22 +1,25 @@
 # This file draws heavily from https://github.com/cainophile/cainophile
 # License: https://github.com/cainophile/cainophile/blob/master/LICENSE
 
-defmodule Realtime.Replication do
+defmodule Hadrian.Replication do
   defmodule State do
-    @enforce_keys [
-      :notify_func,
-      :relations,
-      :transaction,
-      :types
-    ]
-    defstruct @enforce_keys
+    @enforce_keys [:conf]
+    defstruct @enforce_keys ++
+                [
+                  relations: %{},
+                  transaction: nil,
+                  types: %{}
+                ]
   end
 
   use GenServer
 
   require Logger
 
-  alias Realtime.Adapters.Changes.{
+  alias Hadrian.Config
+  alias Hadrian.Registry
+
+  alias Hadrian.Adapters.Changes.{
     Transaction,
     NewRecord,
     UpdatedRecord,
@@ -24,7 +27,7 @@ defmodule Realtime.Replication do
     TruncatedRelation
   }
 
-  alias Realtime.Adapters.Postgres.Decoder.Messages.{
+  alias Hadrian.Adapters.Postgres.Decoder.Messages.{
     Begin,
     Commit,
     Relation,
@@ -35,27 +38,23 @@ defmodule Realtime.Replication do
     Type
   }
 
-  alias Realtime.Adapters.Postgres.EpgsqlServer
+  alias Hadrian.Adapters.Postgres.EpgsqlServer
 
-  def start_link(config) do
-    GenServer.start_link(__MODULE__, config, name: __MODULE__)
+  def start_link(opts) do
+    {name, opts} = Keyword.pop(opts, :name, __MODULE__)
+
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   @impl true
-  def init(config) do
-    {:ok,
-     %State{
-       notify_func: Keyword.fetch!(config, :notify_func),
-       relations: %{},
-       transaction: nil,
-       types: %{}
-     }}
-  end
+  def init(opts), do: {:ok, struct!(State, opts)}
 
   @impl true
   def handle_info({:epgsql, _pid, {:x_log_data, _start_lsn, _end_lsn, binary_msg}}, state) do
-    decoded = Realtime.Adapters.Postgres.Decoder.decode_message(binary_msg)
+    decoded = Hadrian.Adapters.Postgres.Decoder.decode_message(binary_msg)
+
     Logger.debug("Received binary message: #{inspect(binary_msg, limit: :infinity)}")
+
     Logger.debug("Decoded message: " <> inspect(decoded, limit: :infinity))
 
     {:noreply, process_message(decoded, state)}
@@ -79,7 +78,7 @@ defmodule Realtime.Replication do
   defp process_message(
          %Commit{lsn: commit_lsn, end_lsn: end_lsn},
          %State{
-           notify_func: notify_func,
+           conf: %Config{name: name, notify_callback: notify_callback},
            transaction: {current_txn_lsn, %Transaction{changes: changes} = txn},
            relations: relations
          } = state
@@ -104,8 +103,8 @@ defmodule Realtime.Replication do
     #
     # If running in docker the container could then be rebooted by the
     # container scheduler.
-    :ok = notify_func.(complete_transaction)
-    :ok = EpgsqlServer.acknowledge_lsn(end_lsn)
+    :ok = notify_callback.(complete_transaction)
+    :ok = EpgsqlServer.acknowledge_lsn(Registry.via(name, EpgsqlServer), end_lsn)
 
     %{state | transaction: nil}
   end

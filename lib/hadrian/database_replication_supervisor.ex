@@ -1,8 +1,8 @@
-defmodule Realtime.DatabaseReplicationSupervisor do
+defmodule Hadrian.DatabaseReplicationSupervisor do
   use Supervisor
 
-  alias Realtime.Adapters.Postgres.EpgsqlServer
-  alias Realtime.Replication
+  alias Hadrian.Adapters.Postgres.EpgsqlServer
+  alias Hadrian.Replication
 
   def start_link(config) do
     Supervisor.start_link(__MODULE__, config, name: __MODULE__)

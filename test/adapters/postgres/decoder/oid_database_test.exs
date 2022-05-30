@@ -1,5 +1,5 @@
-defmodule Realtime.OidDatabaseTest do
+defmodule Hadrian.OidDatabaseTest do
   use ExUnit.Case
 
-  doctest Realtime.Adapters.Postgres.OidDatabase, import: true
+  doctest Hadrian.Adapters.Postgres.OidDatabase, import: true
 end

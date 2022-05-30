@@ -1,4 +1,4 @@
-defmodule Realtime.MixProject do
+defmodule Hadrian.MixProject do
   use Mix.Project
 
   @version "0.0.0-automated"
@@ -6,7 +6,7 @@ defmodule Realtime.MixProject do
 
   def project do
     [
-      app: :realtime,
+      app: :hadrian,
       version: @version,
       elixir: @elixir,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -21,7 +21,7 @@ defmodule Realtime.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Realtime.Application, []},
+      mod: {Hadrian.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -35,11 +35,11 @@ defmodule Realtime.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:jason, "~> 1.2.2"},
       {:epgsql, "~> 4.5"},
       {:timex, "~> 3.0"},
       {:retry, "~> 0.14.1"},
-      {:mock, "~> 0.3.0", only: :test}
+      {:mock, "~> 0.3.0", only: :test},
+      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false}
     ]
   end
 end

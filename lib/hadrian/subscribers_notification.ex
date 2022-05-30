@@ -1,11 +1,11 @@
-defmodule Realtime.SubscribersNotification do
+defmodule Hadrian.SubscribersNotification do
   require Logger
 
-  alias Realtime.Adapters.Changes.Transaction
+  alias Hadrian.Adapters.Changes.Transaction
 
   def notify(%Transaction{changes: changes}) when is_list(changes) do
     changes
-    |> Jason.encode!(pretty: true)
+    |> IO.inspect()
     |> then(fn json -> Logger.info(json <> "\nlength: #{length(changes)}") end)
   end
 end

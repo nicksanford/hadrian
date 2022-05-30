@@ -1,27 +1,74 @@
 # This file draws from https://github.com/cainophile/cainophile
 # License: https://github.com/cainophile/cainophile/blob/master/LICENSE
 
-defmodule Realtime.Adapters.Postgres.EpgsqlServer do
-  defmodule(State,
-    do:
-      defstruct(
-        epgsql_params: nil,
-        delays: [0],
-        publication_name: nil,
-        epgsql_replication_pid: nil,
-        epgsql_select_pid: nil,
-        slot_config: nil,
-        wal_position: nil,
-        max_replication_lag_in_mb: 0
+defmodule Hadrian.Adapters.Postgres.EpgsqlServer do
+  defmodule State do
+    alias Hadrian.Config
+    @enforce_keys [:conf, :publication_name, :slot_config, :wal_position]
+    defstruct [
+                delays: [0],
+                epgsql_replication_pid: nil,
+                epgsql_select_pid: nil
+              ] ++ @enforce_keys
+
+    def new(opts) do
+      struct!(
+        State,
+        opts
+        |> prepare_slot()
+        |> generate_publication_name()
+        |> get_wal_position()
       )
-  )
+    end
+
+    defp get_wal_position(opts) do
+      %Config{wal_position: wal_position} = opts |> Keyword.fetch!(:conf)
+      Enum.concat(opts, wal_position: wal_position)
+    end
+
+    defp generate_publication_name(opts) do
+      %Config{publications: publications} = opts |> Keyword.fetch!(:conf)
+
+      publications
+      |> Enum.intersperse(",")
+      |> Enum.join("")
+      |> String.replace("'", "\\'")
+      |> then(fn publication_name -> Enum.concat(opts, publication_name: publication_name) end)
+    end
+
+    defp prepare_slot(opts) do
+      %Config{slot_name: slot_name} = opts |> Keyword.fetch!(:conf)
+
+      if is_binary(slot_name) do
+        escaped_slot_name = slot_name |> String.replace("'", "\\'") |> String.downcase()
+
+        {escaped_slot_name,
+         ["CREATE_REPLICATION_SLOT ", escaped_slot_name, " LOGICAL pgoutput NOEXPORT_SNAPSHOT"]
+         |> IO.iodata_to_binary()}
+      else
+        temp_slot_name =
+          ["temp_slot", Integer.to_string(:rand.uniform(9_999))] |> IO.iodata_to_binary()
+
+        {temp_slot_name,
+         [
+           "CREATE_REPLICATION_SLOT ",
+           temp_slot_name,
+           " TEMPORARY LOGICAL pgoutput NOEXPORT_SNAPSHOT"
+         ]
+         |> IO.iodata_to_binary()}
+      end
+      |> then(fn slot_config -> Enum.concat(opts, slot_config: slot_config) end)
+    end
+  end
 
   use GenServer
 
   require Logger
 
-  alias Realtime.Replication
+  alias Hadrian.Replication
   alias Retry.DelayStreams
+  alias Hadrian.Config
+  alias Hadrian.Registry
 
   # 500 milliseconds
   @initial_delay 500
@@ -30,55 +77,30 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
   # Within 10% of a delay's value
   @jitter 0.1
 
-  def start_link(config) when is_list(config) do
-    GenServer.start_link(__MODULE__, config, name: __MODULE__)
+  def start_link(opts) do
+    {name, opts} = Keyword.pop(opts, :name, __MODULE__)
+
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
-  def acknowledge_lsn(lsn) do
-    GenServer.call(__MODULE__, {:ack_lsn, lsn})
+  def acknowledge_lsn(name, lsn) do
+    GenServer.call(name, {:ack_lsn, lsn})
   end
 
   @impl true
-  def init(
-        epgsql_params: epgsql_params,
-        publications: publications,
-        slot_name: slot_name,
-        wal_position: {xlog, offset} = wal_position,
-        max_replication_lag_in_mb: max_replication_lag_in_mb
-      )
-      when is_map(epgsql_params) and is_list(publications) and
-             (is_binary(slot_name) or is_atom(slot_name)) and is_binary(xlog) and
-             is_binary(offset) and is_number(max_replication_lag_in_mb) do
+  def init(opts) do
+    state = State.new(opts)
     Process.flag(:trap_exit, true)
-
-    state = %State{
-      epgsql_params: epgsql_params,
-      wal_position: wal_position,
-      max_replication_lag_in_mb: max_replication_lag_in_mb
-    }
-
-    with publication_name when is_binary(publication_name) <-
-           generate_publication_name(publications),
-         {slot_name, create_replication_command} <- prepare_slot(slot_name) do
-      {:ok,
-       %{
-         state
-         | publication_name: publication_name,
-           slot_config: {slot_name, create_replication_command}
-       }, {:continue, :db_connect}}
-    else
-      error -> {:stop, error, state}
-    end
+    {:ok, state, {:continue, :db_connect}}
   end
 
   @impl true
-  def init(_config) do
-    {:stop, :bad_config, %State{}}
-  end
+  def handle_continue(:db_connect, %State{conf: conf} = state) do
+    epgsql_replication_config =
+      conf
+      |> Config.to_epgsql_config()
+      |> Map.put(:replication, "database")
 
-  @impl true
-  def handle_continue(:db_connect, %State{epgsql_params: epgsql_params} = state) do
-    epgsql_replication_config = Map.put(epgsql_params, :replication, "database")
     epgsql_select_config = Map.delete(epgsql_replication_config, :replication)
 
     epgsql_pids =
@@ -91,8 +113,8 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
 
     [epgsql_replication_pid, epgsql_select_pid] = epgsql_pids
 
-    with true <- Enum.all?(epgsql_pids, &is_pid(&1)),
-         updated_state <- %{
+    with true <- Enum.all?(epgsql_pids, &is_pid/1),
+         updated_state <- %State{
            state
            | epgsql_replication_pid: epgsql_replication_pid,
              epgsql_select_pid: epgsql_select_pid
@@ -161,6 +183,8 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
     end
   end
 
+  # https://github.com/supabase/realtime/pull/129
+  # apparently this is used to handle publications being dropped
   @impl true
   def handle_info(
         {:EXIT, _pid,
@@ -188,7 +212,7 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
   @doc """
 
   Removes the existing replication slot when epgsql replication process crashes due to
-  database deleting WAL segment when Realtime server has fallen too far behind.
+  database deleting WAL segment when Hadrian server has fallen too far behind.
 
   ## Example process exit message
 
@@ -242,8 +266,8 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
   end
 
   defp check_replication_lag_size(%State{
+         conf: %Config{max_replication_lag_in_mb: max_replication_lag_in_mb},
          epgsql_select_pid: epgsql_select_pid,
-         max_replication_lag_in_mb: max_replication_lag_in_mb,
          slot_config: {expected_slot_name, _}
        })
        when is_pid(epgsql_select_pid) and max_replication_lag_in_mb > 0 do
@@ -269,48 +293,17 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
     end
   end
 
-  defp check_replication_lag_size(%State{max_replication_lag_in_mb: max_replication_lag_in_mb})
+  defp check_replication_lag_size(%State{
+         conf: %Config{max_replication_lag_in_mb: max_replication_lag_in_mb}
+       })
        when max_replication_lag_in_mb == 0,
        do: :ok
 
   defp check_replication_lag_size(_), do: {:error, :check_replication_lag_size_error}
 
-  defp generate_publication_name(publications) when is_list(publications) do
-    with true <- Enum.all?(publications, fn pub -> is_binary(pub) end),
-         publication_name when publication_name != "" <-
-           publications
-           |> Enum.intersperse(",")
-           |> IO.iodata_to_binary()
-           |> String.replace("'", "\\'") do
-      publication_name
-    else
-      _ -> :bad_publications
-    end
-  end
-
-  defp generate_publication_name(_publications) do
-    :bad_publications
-  end
-
-  defp prepare_slot(slot_name) when is_binary(slot_name) and slot_name != "" do
-    escaped_slot_name = slot_name |> String.replace("'", "\\'") |> String.downcase()
-
-    {escaped_slot_name,
-     ["CREATE_REPLICATION_SLOT ", escaped_slot_name, " LOGICAL pgoutput NOEXPORT_SNAPSHOT"]
-     |> IO.iodata_to_binary()}
-  end
-
-  defp prepare_slot(_slot_name) do
-    temp_slot_name =
-      ["temp_slot", Integer.to_string(:rand.uniform(9_999))] |> IO.iodata_to_binary()
-
-    {temp_slot_name,
-     ["CREATE_REPLICATION_SLOT ", temp_slot_name, " TEMPORARY LOGICAL pgoutput NOEXPORT_SNAPSHOT"]
-     |> IO.iodata_to_binary()}
-  end
-
   defp start_replication(
          %State{
+           conf: %Config{name: name},
            publication_name: publication_name,
            epgsql_replication_pid: epgsql_replication_pid,
            slot_config: {slot_name, _command},
@@ -321,7 +314,7 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
       true ->
         with :ok <- maybe_create_replication_slot(state),
              replication_server_pid when is_pid(replication_server_pid) <-
-               Process.whereis(Replication),
+               Process.whereis(Registry.via(name, Replication)),
              # TODO: What happens if replication_server_pid dies?
              :ok <-
                :epgsql.start_replication(
@@ -341,7 +334,7 @@ defmodule Realtime.Adapters.Postgres.EpgsqlServer do
         Logger.debug("publication #{publication_name} does not exist")
         maybe_drop_replication_slot(state)
         {delay, updated_state} = get_delay(state)
-        Process.send_after(__MODULE__, :start_replication, delay)
+        Process.send_after(self(), :start_replication, delay)
         {:ok, updated_state}
 
       {:error, error} ->
