@@ -1,8 +1,8 @@
 defmodule Hadrian do
   use Supervisor
-  alias Hadrian.{Config, Registry, Replication}
-  alias Hadrian.Adapters.Postgres.EpgsqlServer
   alias Hadrian.Adapters.Changes.Transaction
+  alias Hadrian.Adapters.Postgres.EpgsqlServer
+  alias Hadrian.{Config, Registry, Replication}
 
   @type notify_callback :: (%Transaction{} -> :ok)
   @type publication :: String.t()
@@ -50,7 +50,7 @@ defmodule Hadrian do
   # end
 
   @impl Supervisor
-  def init(conf = %Config{name: name}) do
+  def init(%Config{name: name} = conf) do
     # List all child processes to be supervised
     children = [
       {Replication, conf: conf, name: Registry.via(name, Replication)},

@@ -2,6 +2,36 @@
 # License: https://github.com/cainophile/cainophile/blob/master/LICENSE
 
 defmodule Hadrian.Replication do
+  use GenServer
+
+  alias Hadrian.Config
+  alias Hadrian.Registry
+
+  alias Hadrian.Adapters.Changes.{
+    DeletedRecord,
+    NewRecord,
+    Transaction,
+    TruncatedRelation,
+    UpdatedRecord
+  }
+
+  alias Hadrian.Adapters.Postgres.Decoder
+
+  alias Decoder.Messages.{
+    Begin,
+    Commit,
+    Delete,
+    Insert,
+    Relation,
+    Truncate,
+    Type,
+    Update
+  }
+
+  alias EpgsqlServer
+
+  require Logger
+
   defmodule State do
     @enforce_keys [:conf]
     defstruct @enforce_keys ++
@@ -11,34 +41,6 @@ defmodule Hadrian.Replication do
                   types: %{}
                 ]
   end
-
-  use GenServer
-
-  require Logger
-
-  alias Hadrian.Config
-  alias Hadrian.Registry
-
-  alias Hadrian.Adapters.Changes.{
-    Transaction,
-    NewRecord,
-    UpdatedRecord,
-    DeletedRecord,
-    TruncatedRelation
-  }
-
-  alias Hadrian.Adapters.Postgres.Decoder.Messages.{
-    Begin,
-    Commit,
-    Relation,
-    Insert,
-    Update,
-    Delete,
-    Truncate,
-    Type
-  }
-
-  alias Hadrian.Adapters.Postgres.EpgsqlServer
 
   def start_link(opts) do
     {name, opts} = Keyword.pop(opts, :name, __MODULE__)
@@ -51,7 +53,7 @@ defmodule Hadrian.Replication do
 
   @impl true
   def handle_info({:epgsql, _pid, {:x_log_data, _start_lsn, _end_lsn, binary_msg}}, state) do
-    decoded = Hadrian.Adapters.Postgres.Decoder.decode_message(binary_msg)
+    decoded = Decoder.decode_message(binary_msg)
 
     Logger.debug("Received binary message: #{inspect(binary_msg, limit: :infinity)}")
 
@@ -62,7 +64,7 @@ defmodule Hadrian.Replication do
 
   @impl true
   def handle_info(msg, state) do
-    IO.inspect(msg)
+    Logger.debug(inspect(msg))
     {:noreply, state}
   end
 
@@ -272,16 +274,14 @@ defmodule Hadrian.Replication do
         %Relation.Column{name: column_name, type: column_type}
         when is_binary(column_name) and is_binary(column_type) ->
           try do
-            {:ok, Kernel.elem(tuple_data, index)}
-          rescue
-            ArgumentError -> :error
-          end
-          |> case do
-            {:ok, record} ->
-              {:cont, Map.put(acc, column_name, convert_column_record(record, column_type))}
+            val =
+              tuple_data
+              |> Kernel.elem(index)
+              |> convert_column_record(column_type)
 
-            :error ->
-              {:halt, acc}
+            {:cont, Map.put(acc, column_name, val)}
+          rescue
+            ArgumentError -> {:halt, acc}
           end
 
         _ ->

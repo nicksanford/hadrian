@@ -2,6 +2,14 @@
 # License: https://github.com/cainophile/cainophile/blob/master/LICENSE
 
 defmodule Hadrian.Adapters.Postgres.EpgsqlServer do
+  use GenServer
+
+  alias Hadrian.Config
+  alias Hadrian.Registry
+  alias Hadrian.Replication
+  alias Retry.DelayStreams
+  require Logger
+
   defmodule State do
     alias Hadrian.Config
     @enforce_keys [:conf, :publication_name, :slot_config, :wal_position]
@@ -39,36 +47,29 @@ defmodule Hadrian.Adapters.Postgres.EpgsqlServer do
     defp prepare_slot(opts) do
       %Config{slot_name: slot_name} = opts |> Keyword.fetch!(:conf)
 
-      if is_binary(slot_name) do
-        escaped_slot_name = slot_name |> String.replace("'", "\\'") |> String.downcase()
+      slot_config =
+        if is_binary(slot_name) do
+          escaped_slot_name = slot_name |> String.replace("'", "\\'") |> String.downcase()
 
-        {escaped_slot_name,
-         ["CREATE_REPLICATION_SLOT ", escaped_slot_name, " LOGICAL pgoutput NOEXPORT_SNAPSHOT"]
-         |> IO.iodata_to_binary()}
-      else
-        temp_slot_name =
-          ["temp_slot", Integer.to_string(:rand.uniform(9_999))] |> IO.iodata_to_binary()
+          {escaped_slot_name,
+           ["CREATE_REPLICATION_SLOT ", escaped_slot_name, " LOGICAL pgoutput NOEXPORT_SNAPSHOT"]
+           |> IO.iodata_to_binary()}
+        else
+          temp_slot_name =
+            ["temp_slot", Integer.to_string(:rand.uniform(9_999))] |> IO.iodata_to_binary()
 
-        {temp_slot_name,
-         [
-           "CREATE_REPLICATION_SLOT ",
-           temp_slot_name,
-           " TEMPORARY LOGICAL pgoutput NOEXPORT_SNAPSHOT"
-         ]
-         |> IO.iodata_to_binary()}
-      end
-      |> then(fn slot_config -> Enum.concat(opts, slot_config: slot_config) end)
+          {temp_slot_name,
+           [
+             "CREATE_REPLICATION_SLOT ",
+             temp_slot_name,
+             " TEMPORARY LOGICAL pgoutput NOEXPORT_SNAPSHOT"
+           ]
+           |> IO.iodata_to_binary()}
+        end
+
+      Enum.concat(opts, slot_config: slot_config)
     end
   end
-
-  use GenServer
-
-  require Logger
-
-  alias Hadrian.Replication
-  alias Retry.DelayStreams
-  alias Hadrian.Config
-  alias Hadrian.Registry
 
   # 500 milliseconds
   @initial_delay 500
@@ -352,7 +353,8 @@ defmodule Hadrian.Adapters.Postgres.EpgsqlServer do
 
   defp get_delay(%State{delays: []} = state) do
     [delay | delays] =
-      DelayStreams.exponential_backoff(@initial_delay)
+      @initial_delay
+      |> DelayStreams.exponential_backoff()
       |> DelayStreams.randomize(@jitter)
       |> DelayStreams.expiry(@maximum_delay)
       |> Enum.to_list()

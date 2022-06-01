@@ -49,7 +49,7 @@ defmodule Hadrian.Config do
     struct!(__MODULE__, opts)
   end
 
-  def to_epgsql_config(config = %__MODULE__{}) do
+  def to_epgsql_config(%__MODULE__{} = config) do
     config
     |> Map.take([:host, :username, :database, :passwod, :port, :ssl])
     |> Enum.map(fn
@@ -125,7 +125,7 @@ defmodule Hadrian.Config do
     end
   end
 
-  defp validate_opt(pair = {key, opt}) when key in @non_neg_int_vals do
+  defp validate_opt({key, opt} = pair) when key in @non_neg_int_vals do
     if is_integer(opt) and opt >= 0 do
       :ok
     else
@@ -133,7 +133,7 @@ defmodule Hadrian.Config do
     end
   end
 
-  defp validate_opt(pair = {:ip_version, opt}) do
+  defp validate_opt({:ip_version, opt} = pair) do
     if opt in [:ipv4, :ipv6] do
       :ok
     else
@@ -141,7 +141,7 @@ defmodule Hadrian.Config do
     end
   end
 
-  defp validate_opt(pair = {:notify_callback, opt}) do
+  defp validate_opt({:notify_callback, opt} = pair) do
     if is_function(opt, 1) do
       :ok
     else
@@ -149,7 +149,7 @@ defmodule Hadrian.Config do
     end
   end
 
-  defp validate_opt(pair = {:wal_position, opt}) do
+  defp validate_opt({:wal_position, opt} = pair) do
     opt
     |> then(fn
       {xlogid, xrecoff} when is_binary(xlogid) and is_binary(xrecoff) ->
