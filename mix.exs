@@ -39,7 +39,7 @@ defmodule Hadrian.MixProject do
       # TODO: See if you can remove timex
       {:timex, "~> 3.0"},
       {:telemetry, "~> 0.4 or ~> 1.0"},
-      {:retry, "~> 0.14.1"},
+      {:retry, "~> 0.16.0"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:test, :dev], runtime: false},
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false}
