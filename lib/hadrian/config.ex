@@ -18,7 +18,6 @@ defmodule Hadrian.Config do
     :database,
     :port,
     :ssl,
-    :password,
     :ip_version,
     :publications,
     :slot_name,
@@ -26,7 +25,7 @@ defmodule Hadrian.Config do
     :max_replication_lag_in_mb,
     :name
   ]
-  defstruct @enforce_keys
+  defstruct @enforce_keys ++ [:password]
 
   @type t :: %__MODULE__{
           notify_callback: Hadrian.notify_callback(),
