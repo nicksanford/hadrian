@@ -1,0 +1,55 @@
+version: "3"
+services:
+  app:
+    image: hadrian_dev
+    build:
+      context: .
+      args:
+        MIX_ENV: dev
+    env_file: .env
+    depends_on:
+      - postgres
+    volumes :
+      - .:/app
+      - dev_deps:/app/deps
+      - dev_build:/app/_build
+    command:
+       mix ecto.create && mix ecto.migrate && iex -S mix
+
+  test:
+    image: hadrian_test
+    build:
+      context: .
+      args:
+        MIX_ENV: test
+    env_file: .env
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+      - test_build:/app/_build
+      - test_deps:/app/deps
+    command:
+       mix test
+
+  postgres:
+    image: postgres:12.2
+    container_name: hadrian_db
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: hadrian
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  dev_deps:
+  dev_build:
+  test_deps:
+  test_build:

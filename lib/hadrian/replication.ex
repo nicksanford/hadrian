@@ -28,7 +28,7 @@ defmodule Hadrian.Replication do
     Update
   }
 
-  alias EpgsqlServer
+  alias Hadrian.Adapters.Postgres.EpgsqlServer
 
   require Logger
 

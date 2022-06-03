@@ -9,7 +9,6 @@ defmodule HadrianTest do
     :database,
     :port,
     :ssl,
-    :password,
     :ip_version,
     :publications,
     :slot_name,
@@ -24,15 +23,14 @@ defmodule HadrianTest do
   setup do
     valid_config = [
       notify_callback: fn _ -> :ok end,
-      host: "localhost",
-      username: "some_username",
-      database: "some_database",
-      port: 3888,
-      ssl: true,
-      password: "some_password",
+      host: "postgres",
+      username: "postgres",
+      database: "hadrian",
+      port: 5432,
+      ssl: false,
       ip_version: :ipv4,
-      publications: ["a_publication"],
-      slot_name: "a_slot_name",
+      publications: ["hadrian"],
+      slot_name: "hadrian_slot",
       wal_position: {"0", "0"},
       max_replication_lag_in_mb: 0
     ]
@@ -51,7 +49,7 @@ defmodule HadrianTest do
 
       assert logs =~ "[error] GenServer "
       assert logs =~ "terminating"
-      assert logs =~ "** (stop) :econnrefused"
+      assert logs =~ "** (stop) :nxdomain"
     end
 
     @tag skip: true

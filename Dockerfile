@@ -1,55 +1,54 @@
-# ---- Build Stage ----
-FROM elixir:1.13.4 AS app_builder
+# Find eligible builder and runner images on Docker Hub. We use Ubuntu/Debian instead of
+# Alpine to avoid DNS resolution issues in production.
+#
+# https://hub.docker.com/r/hexpm/elixir/tags?page=1&name=ubuntu
+# https://hub.docker.com/_/ubuntu?tab=tags
+#
+#
+# This file is based on these images:
+#
+#   - https://hub.docker.com/r/hexpm/elixir/tags - for the build image
+#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20210902-slim - for the release image
+#   - https://pkgs.org/ - resource for finding needed packages
+#   - Ex: hexpm/elixir:1.12.0-erlang-24.0.1-debian-bullseye-20210902-slim
+#
+ARG ELIXIR_VERSION=1.13.4
+ARG OTP_VERSION=24.0.1
+ARG DEBIAN_VERSION=bullseye-20210902-slim
 
-# Set environment variables for building the application
-ENV MIX_ENV=prod \
-    TEST=1 \
-    LANG=C.UTF-8 \
-    DB_HOST=localhost \
-    DB_NAME=postgres \
-    DB_USER=postgres \
-    DB_PASSWORD=postgres \
-    DB_PORT=5432 \
-    MIX_ENV=prod \
+ARG IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
+ARG MIX_ENV="dev"
 
-RUN apt-get update
+FROM ${IMAGE} as image 
 
-# Install hex and rebar
+# install build dependencies
+RUN apt-get update -y && apt-get install -y build-essential git inotify-tools \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+
+# prepare build dir
+WORKDIR /app
+
+# install hex + rebar
 RUN mix local.hex --force && \
     mix local.rebar --force
 
-# Create the application build directory
-RUN mkdir /app
-WORKDIR /app
+# set build ENV
 
+# # install mix dependencies
+COPY mix.exs mix.lock ./
+RUN mix deps.get --only $MIX_ENV
 
-# Copy over all the necessary application files and directories
-COPY ./server/config ./config
-COPY ./server/lib ./lib
-COPY ./server/mix.exs .
-COPY ./server/mix.lock .
-
-# Fetch the application dependencies and build the application
-RUN mix deps.get
+# # copy compile-time config files before we compile dependencies
+# # to ensure any relevant config change will trigger the dependencies
+# # to be re-compiled.
 RUN mix deps.compile
-RUN mix release
 
+# # Compile the release
+COPY lib lib
+COPY priv priv
+COPY test test
 
-# ---- Application Stage ----
-FROM debian:bullseye AS app
+RUN mix compile
+COPY config config
 
-ENV LANG=C.UTF-8
-
-# Install openssl
-RUN apt-get update && \
-    apt-get install -y openssl
-
-# Copy over the build artifact from the previous step and create a non root user
-# RUN adduser -D -h /home/app app
-# WORKDIR /home/app
-COPY --from=app_builder /app/_build .
-# RUN chown -R app: ./prod
-# USER app
-
-# Run the Phoenix app
-CMD ["./prod/rel/hadrian/bin/hadrian", "start"]
+CMD ["iex", "-S", "mix"]

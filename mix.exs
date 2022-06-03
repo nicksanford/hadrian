@@ -7,6 +7,7 @@ defmodule Hadrian.MixProject do
   def project do
     [
       app: :hadrian,
+      aliases: aliases(),
       version: @version,
       elixir: @elixir,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -22,13 +23,22 @@ defmodule Hadrian.MixProject do
   def application do
     [
       mod: {Hadrian.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger]
     ]
   end
 
   # Specifies which paths to compile per environment.
+  defp elixirc_paths(:dev), do: ["lib", "test/support"]
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp aliases do
+    [
+      "ecto.setup": ["ecto.create --quiet", "ecto.migrate"],
+      "ecto.reset": ["ecto.drop", "ecto.setup"],
+      test: ["ecto.setup", "test"]
+    ]
+  end
 
   # Specifies your project dependencies.
   #
@@ -42,7 +52,11 @@ defmodule Hadrian.MixProject do
       {:retry, "~> 0.16.0"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:test, :dev], runtime: false},
-      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false}
+      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:ecto_sql, "~> 3.0", only: [:dev, :test]},
+      {:postgrex, ">= 0.0.0", only: [:dev, :test]}
     ]
   end
+
+  #
 end
